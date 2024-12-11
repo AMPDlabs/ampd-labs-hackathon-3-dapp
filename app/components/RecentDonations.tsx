@@ -1,21 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useReadContract, useWatchContractEvent } from "wagmi";
+import type { Abi, Address } from "viem";
 import { formatEther } from "viem";
 import { contracts } from "../utils/contracts";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar, Name } from "@coinbase/onchainkit/identity";
 import { base } from "viem/chains";
 import debounce from "lodash/debounce";
-
-type ProfileDetails = [
-	string,
-	string,
-	string,
-	string,
-	string,
-	string,
-	Array<{ timestamp: bigint; from: string; value: bigint }>,
-];
+import type { ProfileData } from "../[username]/page";
 
 interface Donation {
 	id: number;
@@ -46,12 +38,10 @@ export default function RecentDonations({
 	const donationsPerPage = 5;
 
 	const { data: profileDetails } = useReadContract({
-		address: profileAddress as `0x${string}`,
-		abi: contracts.profile.abi,
+		address: profileAddress as Address,
+		abi: contracts.profile.abi as Abi,
 		functionName: "getProfileDetails",
-		// @ts-expect-error: Known type inference issue
-		watch: true,
-	}) as { data: ProfileDetails | undefined };
+	}) as { data: ProfileData | undefined };
 
 	const updateDonations = useCallback((newDonations: Donation[]) => {
 		setDonations((prevDonations) => {
@@ -76,8 +66,9 @@ export default function RecentDonations({
 
 	useEffect(() => {
 		if (profileDetails) {
-			const recentTips = profileDetails[6];
-			const formattedDonations = recentTips.map((tip) => {
+			console.log("Recent tips", profileDetails.recentTips);
+			const recentTips = profileDetails.recentTips;
+			const formattedDonations = (recentTips || []).map((tip) => {
 				const ethAmount = Number(formatEther(tip.value));
 				return {
 					id: Number(tip.timestamp),
@@ -89,13 +80,12 @@ export default function RecentDonations({
 						addSuffix: true,
 					}),
 					isNew: false,
-					// @ts-expect-error: Known type inference issue
 					message: tip.message,
 				};
 			});
 			debouncedUpdateDonations(formattedDonations);
 		}
-	}, [profileDetails, debouncedUpdateDonations, ethToUsdRate]);
+	}, [profileDetails]);
 
 	useWatchContractEvent({
 		address: profileAddress as `0x${string}`,
@@ -156,7 +146,7 @@ export default function RecentDonations({
 								<Avatar
 									address={donation.address as `0x${string}`}
 									chain={base}
-									className="w-6 h-6"
+									className="w-6 h-6 bg-white"
 								/>
 								<Name
 									address={donation.address as `0x${string}`}
@@ -194,7 +184,7 @@ export default function RecentDonations({
 							{currentPage} / {totalPages}
 						</span>
 						<button
-              type="button"
+							type="button"
 							onClick={() =>
 								setCurrentPage((prev) => Math.min(prev + 1, totalPages))
 							}

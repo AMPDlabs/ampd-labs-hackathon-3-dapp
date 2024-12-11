@@ -91,7 +91,7 @@ export default function WithdrawPopup({
 								to: contractAddress as `0x${string}`,
 								data: encodeFunctionData({
 									abi: contracts.profile.abi,
-									functionName: "withdrawTips",
+									functionName: "withdraw",
 									args: [],
 								}),
 							},

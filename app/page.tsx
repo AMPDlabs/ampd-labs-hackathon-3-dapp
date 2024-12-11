@@ -4,7 +4,14 @@ import { useCallback, useState, useEffect } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { contracts } from "./utils/contracts";
 import { baseSepolia } from "wagmi/chains";
-import { parseEther, formatEther, encodeFunctionData, type Abi } from "viem";
+import {
+	parseEther,
+	formatEther,
+	encodeFunctionData,
+	type Abi,
+	Address,
+	Hex,
+} from "viem";
 import { useAccount } from "wagmi";
 import {
 	Transaction,
@@ -29,9 +36,11 @@ export default function Home() {
 		boolean | null
 	>(null);
 	const [latestProfiles, setLatestProfiles] = useState<
-		Array<{ username: string; timestamp: number }>
+		Array<{ username: string; created: number }>
 	>([]);
-	const [profileFee, setProfileFee] = useState<bigint | null>(null);
+	const [profileFee, setProfileFee] = useState<bigint | null>(
+		parseEther("0.0001"),
+	);
 
 	const [randomWord, setRandomWord] = useState("sip");
 
@@ -60,34 +69,27 @@ export default function Home() {
 		[username],
 	);
 
-	const { data: calculatedFee, refetch: calculateProfileFee } = useReadContract(
-		{},
-	);
-
-	useEffect(() => {
-		if (calculatedFee !== undefined) {
-			setProfileFee(calculatedFee as bigint);
-		}
-	}, [calculatedFee]);
-
-	const calculateFee = useCallback(() => {
-		if (username) {
-			calculateProfileFee();
-		}
-	}, [username, calculateProfileFee]);
-
-	useEffect(() => {
-		calculateFee();
-	}, [calculateFee]);
-
-	const createProfileContract = {};
+	const createProfileContract: { to: Hex; data?: Hex; value?: bigint } = {
+		to: contracts.profileFactory.address as Address,
+		data: encodeFunctionData({
+			abi: contracts.profileFactory.abi as Abi,
+			functionName: "createProfile",
+			args: [username, "", []],
+		}),
+		value: profileFee ?? undefined,
+	};
 
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 	};
 
 	const { data: profileAddress, refetch: getProfileByUsername } =
-		useReadContract({});
+		useReadContract({
+			address: contracts.profileFactory.address as Address,
+			abi: contracts.profileFactory.abi as Abi,
+			functionName: "getProfileByUsername",
+			args: [username],
+		});
 
 	const checkUsernameAvailability = useCallback(async () => {
 		if (username.trim() === "") {
@@ -116,84 +118,28 @@ export default function Home() {
 
 	const { isConnected } = useAccount();
 
-	const { data: latestProfilesData } = useReadContract({});
-
-	const { data: profilesData } = useReadContracts({
-		contracts:
-			(latestProfilesData as `0x${string}`[] | undefined)?.flatMap(
-				(address) => [
-					{
-						address,
-						abi: contracts.profile.abi as Abi,
-						functionName: "username",
-						chainId: baseSepolia.id,
-					},
-					{
-						address,
-						abi: contracts.profile.abi as Abi,
-						functionName: "created",
-						chainId: baseSepolia.id,
-					},
-				],
-			) || [],
+	const { data: latestProfilesData } = useReadContract({
+		address: contracts.profileFactory.address as Address,
+		abi: contracts.profileFactory.abi as Abi,
+		functionName: "getProfiles",
+		args: [],
 	});
 
+	// Update latestProfiles when latestProfilesData changes
 	useEffect(() => {
-		if (profilesData && profilesData.length % 2 === 0) {
-			const profiles = [];
-			for (let i = 0; i < profilesData.length; i += 2) {
-				profiles.push({
-					username: profilesData[i].result as unknown as string,
-					timestamp: Number(profilesData[i + 1].result),
-				});
-			}
-			setLatestProfiles(profiles.reverse());
-		}
-	}, [profilesData]);
-
-	const { data: totalProfiles } = useReadContract({});
-
-	const startIndex = totalProfiles
-		? Math.max(0, Number(totalProfiles) - 10)
-		: 0;
-	const endIndex = totalProfiles ? Number(totalProfiles) : 0;
-
-	const { data: profileAddresses } = useReadContracts({
-		contracts: Array.from({ length: endIndex - startIndex }, (_, i) => ({})),
-	});
-
-	const { data: profilesDataNew } = useReadContracts({
-		contracts:
-			profileAddresses?.flatMap((address) => [
-				{
-					address: address.result as unknown as `0x${string}`,
-					abi: contracts.profile.abi,
-					functionName: "username",
-					chainId: baseSepolia.id,
+		if (latestProfilesData) {
+			console.log(latestProfilesData);
+			const profiles = latestProfilesData.map(
+				(profile: { username: string; created: number }) => {
+					return {
+						username: profile.username,
+						created: profile.created,
+					};
 				},
-				{
-					address: address.result as unknown as `0x${string}`,
-					abi: contracts.profile.abi,
-					functionName: "created",
-					chainId: baseSepolia.id,
-				},
-			]) || [],
-	});
-
-	useEffect(() => {
-		if (profilesDataNew && profilesDataNew.length % 2 === 0) {
-			const profiles = [];
-			for (let i = 0; i < profilesDataNew.length; i += 2) {
-				profiles.push({
-					username: profilesDataNew[i].result as unknown as string,
-					timestamp: Number(profilesDataNew[i + 1].result),
-				});
-			}
-			setLatestProfiles(
-				profiles.sort((a, b) => b.timestamp - a.timestamp).slice(0, 10),
 			);
+			setLatestProfiles(profiles);
 		}
-	}, [profilesDataNew]);
+	}, [latestProfilesData]);
 
 	const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const newUsername = e.target.value
@@ -352,7 +298,7 @@ export default function Home() {
 						<h2 className="text-xl font-bold bg-gradient-to-r from-[#DDB76C] via-[#E6C88A] to-[#f5b235] text-transparent bg-clip-text mr-2">
 							Recent Profiles:
 						</h2>
-						{latestProfiles.map(({ username, timestamp }, index) => (
+						{latestProfiles.map(({ username, created }, index) => (
 							<Link
 								key={username}
 								href={`/${username}`}
@@ -361,7 +307,7 @@ export default function Home() {
 								<span className="font-semibold text-[#f5b235]">{username}</span>
 								<span className="text-gray-400 ml-2">
 									(
-									{formatDistanceToNow(new Date(timestamp * 1000), {
+									{formatDistanceToNow(new Date(Number(created) * 1000), {
 										addSuffix: true,
 									})}
 									)

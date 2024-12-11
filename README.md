@@ -67,9 +67,9 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 - 📌 Use the `getProfileByUsername` function to check if a username is available.
 - ⭐️ Add a tooltip explaining username restrictions.
 
-### **4. 📌 Dynamic Fee Calculation**
-- 📌 Use the `calculateProfileFee` function to dynamically fetch the required fee for profile creation.
-- 📌 Show the calculated fee in ETH and USD.
+### **4. ~~📌 Dynamic Fee Calculation~~**
+- ~~📌 Use the `calculateProfileFee` function to dynamically fetch the required fee for profile creation.~~
+- ~~📌 Show the calculated fee in ETH and USD.~~
 
 ### **5. 📌 Create a Profile**
 - 📌 Add a "Claim Username" button to trigger the `createProfile` function.

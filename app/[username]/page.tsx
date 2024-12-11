@@ -18,7 +18,7 @@ interface Tip {
 	value: bigint;
 }
 
-interface ProfileData {
+export interface ProfileData {
 	username: string;
 	aboutMe: string;
 	profilePicture: string;
@@ -40,16 +40,33 @@ export default function UserPage({ params }: { params: { username: string } }) {
 	const [ethToUsdRate, setEthToUsdRate] = useState<number | null>(null);
 
 	const { data: contractAddress } = useReadContract({
-		address: contracts.profileFactory.address as `0x${string}`,
+		address: contracts.profileFactory.address as Address,
 		abi: contracts.profileFactory.abi,
 		functionName: "getProfileByUsername",
 		args: [params.username],
 	}) as { data: Address };
 
-	const { data: profileContractData } = useReadContracts({});
+	const { data: profileContractData } = useReadContracts({
+		contracts: [
+			{
+				address: contractAddress as Address,
+				abi: contracts.profile.abi,
+				functionName: "getProfileDetails",
+			},
+			{
+				address: contractAddress as Address,
+				abi: contracts.profile.abi,
+				functionName: "owner",
+			},
+		],
+	});
 
 	useEffect(() => {
-		if (profileContractData?.[1]?.result) {
+		if (profileContractData) {
+			console.log(profileContractData);
+			const profile = profileContractData[0].result as ProfileData;
+			profile.ownerAddress = profileContractData[1].result as string;
+			setProfileData(profile);
 		}
 	}, [profileContractData]);
 
@@ -103,7 +120,7 @@ export default function UserPage({ params }: { params: { username: string } }) {
 						signedInWallet={currentSignedInWalletAddress as string}
 						onConfigClick={() => setIsConfigOpen(true)}
 						onWithdrawClick={() => setIsWithdrawOpen(true)}
-						totalTipsReceived={profileData.totalTipsReceived}
+						totalTips={profileData.totalTips}
 						aboutMe={profileData.aboutMe}
 						bannerUrl={profileData.bannerPicture || ""}
 						socialLinks={profileData.socialProfiles}

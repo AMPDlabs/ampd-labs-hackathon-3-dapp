@@ -38,7 +38,7 @@ export default function UserInfo({
 	signedInWallet,
 	onConfigClick,
 	onWithdrawClick,
-	totalTipsReceived,
+	totalTips,
 	aboutMe,
 	bannerUrl,
 	socialLinks,
@@ -52,7 +52,7 @@ export default function UserInfo({
 	signedInWallet: string;
 	onConfigClick: () => void;
 	onWithdrawClick: () => void;
-	totalTipsReceived: bigint;
+	totalTips: bigint;
 	aboutMe: string;
 	bannerUrl: string;
 	socialLinks: string | string[];
@@ -62,7 +62,9 @@ export default function UserInfo({
 	const [showMore, setShowMore] = useState(false);
 	const isOwner = signedInWallet === walletAddress;
 
-	const formattedTotalTips = Number(formatEther(totalTipsReceived)).toFixed(4);
+	const formattedTotalTips = totalTips
+		? Number(formatEther(totalTips)).toFixed(4)
+		: "0.0000";
 
 	const randomDonationItem = useMemo(() => {
 		return donationItems[Math.floor(Math.random() * donationItems.length)];
